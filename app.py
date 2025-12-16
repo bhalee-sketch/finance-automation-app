@@ -3,12 +3,16 @@
 import streamlit as st
 from tax_invoice_app import run as run_tax  # ← 분리한 파일에서 run() 가져오기
 from misc_app import run as run_misc        # ← 기타기능 모듈
+from loan_app import run as run_loan
+from ledger_app import run as run_ledger
+from xls_convert_app import run as run_xls_convert
+from fundcheck_app import run as run_fund_check
+from donation_main_app import run as run_donation_main
 
 def go(page: str):
     """페이지 상태 변경 + 즉시 리렌더링"""
     st.session_state["page"] = page
     st.rerun()
-
 
 def render_main_menu():
     st.title("📊 재무회계팀 자동화 작업 메뉴")
@@ -26,7 +30,7 @@ def render_main_menu():
         unsafe_allow_html=True,
     )
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     # ---------------------- 결산 작업 + 기타기능 ----------------------
     with col1:
@@ -34,7 +38,8 @@ def render_main_menu():
 
         st.markdown('<div class="small-button">', unsafe_allow_html=True)
         st.button("재무제표 생성", disabled=True)
-        st.button("회계단위별 원장파일 통합", disabled=True)
+        if st.button("회계단위별 원장파일 통합"):
+            go("ledger")
         st.button("재무제표 vs 부속명세서 검증", disabled=True)
 
         st.markdown("---")   # 구분선
@@ -42,6 +47,8 @@ def render_main_menu():
         st.subheader("🛠️ 기타기능 🛠️")
         if st.button("자금이체 적요 자동생성"):
             go("misc")
+        if st.button("XLS → XLSX 변환"):
+            go("xls_convert")    
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------------- 검증 / 대조 ----------------------
@@ -51,12 +58,28 @@ def render_main_menu():
         st.markdown('<div class="small-button">', unsafe_allow_html=True)
         if st.button("세금계산서 대조"):
             go("tax")
-
-        st.button("사학진흥재단 차입금 정리", disabled=True)
+        if st.button("사학진흥재단 차입금 정리"):
+            go("loan")     # loan_app.py를 연결할 key
         st.button("선급법인세 취합", disabled=True)
+        st.button("재원별 지출계좌 검증", disabled=True)
+        if st.button("임의기금 지출계좌 검증"):
+            go("fund_check")
+        if st.button("출연받은재산 정리"):
+            go("donation_main")
+
+    # ---------------------- 출연받은 재산 작업 ----------------------
+    with col3:
+        st.subheader("🎁출연받은재산 보고를 위한 작업🎁")
+        st.write("아래의 기능들을 순서대로 작업하는 것을 추천")    
+        st.button("1) 당해 기부금 내역 정리", disabled=True)
+        st.button("2) 출연받은재산보고 정리", disabled=True) 
+        st.button("3) 기부금지출명세서 정리", disabled=True)
+        st.button("4) 기부금지출명세서 검증", disabled=True)    
         st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("---")   # 구분선
 
-
+        st.subheader("산단 준비중")
+        
 def main():
     st.set_page_config(layout="wide", page_title="재무·세무 자동화 메인")
 
@@ -82,6 +105,20 @@ def main():
         # 기타 기능 페이지 (misc_app.run)
         run_misc()
 
+    elif st.session_state["page"] == "loan":
+        run_loan()
+
+    elif st.session_state["page"] == "ledger":
+        run_ledger()
+
+    elif st.session_state["page"] == "xls_convert":
+        run_xls_convert()
+    
+    elif st.session_state["page"] == "fund_check":
+        run_fund_check()
+
+    elif st.session_state["page"] == "donation_main":
+        run_donation_main()
 
 if __name__ == "__main__":
     main()

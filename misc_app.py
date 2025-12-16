@@ -205,7 +205,17 @@ CODE_MAP = build_code_map()
 # 메인 기능: 엔터로 즉시 생성
 # --------------------------
 def run():
-    st.title("🛠 기타 기능 🛠 - 자금이체 문구 생성")
+    # 상단 레이아웃: [뒤로가기 버튼] [제목 영역]
+    back_col, title_col = st.columns([1, 5])
+
+    with back_col:
+        if st.button("⬅ 메인으로"):
+            st.session_state["page"] = "main"
+            st.rerun()
+
+    with title_col:
+        st.title("🛠 기타 기능 🛠 - 자금이체 문구 생성")
+
     st.write("끝 5자리 숫자를 입력하면 엔터키로 바로 문구가 생성됩니다.")
 
     # 입력 필드
@@ -232,8 +242,7 @@ def run():
                 phrase = f"자금이체 : {src} -> {dst}"
                 st.success("문구가 생성되었습니다.")
                 st.code(phrase, language="text")
+        else:
+            st.info("5자리 숫자를 정확히 입력해 주세요.")
 
     st.markdown("---")
-    if st.button("⬅ 메인 메뉴로"):
-        st.session_state["page"] = "main"
-        st.rerun()

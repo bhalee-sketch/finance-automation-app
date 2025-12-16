@@ -189,7 +189,15 @@ def import_by_pattern(uploaded_files, pattern, start_row_first):
 
             try:
                 f.seek(0)
-                raw = pd.read_excel(f, header=None)
+                raw = pd.read_excel(
+                    f,
+                    header=None,
+                    engine="openpyxl",
+                    dtype=str,
+                    na_filter=False,        # ✅ 빈칸/마스킹을 NaN으로 덜 바꿈
+                    keep_default_na=False
+                )
+
             except Exception as e:
                 st.warning(f"{f.name} 읽기 오류: {e}")
                 skipped += 1
@@ -282,8 +290,37 @@ def connect_by_id(home_df, haksa_df):
         home_body["__KEY"] = normalize_key(home_body["공급자등록번호"])
         haksa_body["__KEY"] = normalize_key(haksa_body["사업자번호_학사"])
 
-        merged = pd.merge(home_body, haksa_body, on="__KEY", how="left")
-        merged = merged.drop(columns=["__KEY"])
+        # ✅ merge는 한 번만 (indicator 포함)
+        merged = pd.merge(
+            home_body,
+            haksa_body,
+            on="__KEY",
+            how="left",
+            indicator=True
+        )
+
+        # ✅ 홈택스에 없는 학사 키만 추출
+        home_keys = set(home_body["__KEY"].dropna().astype(str))
+        haksa_only = haksa_body[
+            haksa_body["__KEY"].notna() &
+            ~haksa_body["__KEY"].astype(str).isin(home_keys)
+        ].copy()
+
+        if not haksa_only.empty:
+            # merged 구조에 맞게 컬럼 보정
+            for c in merged.columns:
+                if c not in haksa_only.columns and c != "_merge":
+                    haksa_only[c] = pd.NA
+
+            # 컬럼 순서 맞추기
+            haksa_only = haksa_only[[c for c in merged.columns if c != "_merge"]]
+            haksa_only["_merge"] = "haksa_only"
+
+            merged = pd.concat([merged, haksa_only], ignore_index=True)
+
+        # 마무리 정리
+        merged = merged.drop(columns=["__KEY", "_merge"])
+    
     else:
         merged = home_body.copy()
 
@@ -291,6 +328,25 @@ def connect_by_id(home_df, haksa_df):
 
 
 # =========================== 엑셀 수식 ===========================
+
+def display_len(cell) -> int:
+    v = cell.value
+    if v is None:
+        return 0
+
+    if isinstance(v, bool):
+        return 4 if v else 5  # TRUE / FALSE
+
+    if isinstance(v, (int, float)):
+        fmt = cell.number_format or ""
+        if "," in fmt:
+            try:
+                return len(f"{v:,.0f}")
+            except Exception:
+                return len(str(v))
+        return len(str(v))
+
+    return len(str(v))
 
 def apply_formulas_and_autofit(writer, sheet, df, is_tax=True):
     ws = writer.book[sheet]
@@ -318,10 +374,10 @@ def apply_formulas_and_autofit(writer, sheet, df, is_tax=True):
     else:
         ws.cell(1, col_X).value = "공급가액차이"
 
-    last = start_row + len(df)
+    last = start_row + len(df) - 1
 
     # ── 행별로 수식 채우기 ─────────────────────
-    for row in range(start_row, last):
+    for row in range(start_row, last+1):
         if col_B and col_K:
             ws.cell(row, col_W).value = (
                 f"=EXACT({get_column_letter(col_B)}{row},"
@@ -361,21 +417,42 @@ def apply_formulas_and_autofit(writer, sheet, df, is_tax=True):
     }
 
     for col in amount_cols:
-        for row in range(start_row, last):
+        for row in range(start_row, last+1):
             cell = ws.cell(row=row, column=col)
             if cell.value is not None:
                 cell.number_format = "#,##0"
 
-    # ── 열 너비 자동 맞춤 ───────────────────────────────
-    for col_cells in ws.columns:
+    # ── 열 너비 자동 맞춤 (표시값 기준) ─────────────────
+    max_col = col_Z if is_tax else col_X
+
+    for col_idx in range(1, max_col + 1):
+        col_letter = get_column_letter(col_idx)
         max_len = 0
-        col_letter = col_cells[0].column_letter
-        for cell in col_cells:
-            if cell.value is not None:
-                max_len = max(max_len, len(str(cell.value)))
-        ws.column_dimensions[col_letter].width = max_len + 2
 
+        for row in range(1, last+1):  # 헤더 포함
+            cell = ws.cell(row=row, column=col_idx)
+            max_len = max(max_len, display_len(cell))
 
+        if max_len > 0:
+            ws.column_dimensions[col_letter].width = max_len + 2    
+
+    # ── 🔒 공급가액차이 열 고정 폭 (105px ≈ width 15) ─────────
+    SUPPLY_DIFF_WIDTH = 15  # 105px 정도
+    ws.column_dimensions[get_column_letter(col_X)].width = SUPPLY_DIFF_WIDTH            
+
+def apply_to_all_sheets(writer, sheet_df_map, tax_sheets):
+    """
+    sheet_df_map: {시트명: df}
+    tax_sheets: 세금계산서 시트명 set
+    """
+    for sheet_name, df in sheet_df_map.items():
+        is_tax = sheet_name in tax_sheets
+        apply_formulas_and_autofit(
+            writer=writer,
+            sheet=sheet_name,
+            df=df,
+            is_tax=is_tax
+        )
 
 # =========================== Streamlit UI (run 함수) ===========================
 
@@ -462,26 +539,23 @@ def run():
     st.subheader("통합 엑셀 다운로드")
     if st.button("📥 대조결과 엑셀 생성"):
         output = BytesIO()
+
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
-            buy_tax.to_excel(writer, "매입세금계산서_매칭", index=False)
-            apply_formulas_and_autofit(
-                writer, "매입세금계산서_매칭", buy_tax, is_tax=True
-            )
+            sheet_map = {
+                "매입세금계산서_매칭": (buy_tax, True),
+                "매출세금계산서_매칭": (sell_tax, True),
+                "매입계산서_매칭":     (buy_bill, False),
+                "매출계산서_매칭":     (sell_bill, False),
+            }
 
-            sell_tax.to_excel(writer, "매출세금계산서_매칭", index=False)
-            apply_formulas_and_autofit(
-                writer, "매출세금계산서_매칭", sell_tax, is_tax=True
-            )
-
-            buy_bill.to_excel(writer, "매입계산서_매칭", index=False)
-            apply_formulas_and_autofit(
-                writer, "매입계산서_매칭", buy_bill, is_tax=False
-            )
-
-            sell_bill.to_excel(writer, "매출계산서_매칭", index=False)
-            apply_formulas_and_autofit(
-                writer, "매출계산서_매칭", sell_bill, is_tax=False
-            )
+            for sheet_name, (df, is_tax) in sheet_map.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=False)
+                apply_formulas_and_autofit(
+                    writer=writer,
+                    sheet=sheet_name,
+                    df=df,
+                    is_tax=is_tax
+                )
 
         output.seek(0)
         st.download_button(
