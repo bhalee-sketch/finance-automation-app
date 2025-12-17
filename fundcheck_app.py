@@ -200,8 +200,7 @@ def run():
     st.title("🧩 기금재원정리 (임의기금 분류)")
     st.write("원장 기본엑셀 파일을 업로드하면 4개 시트(연구/장학/건축/특목)로 분류해 새 엑셀을 만들어줍니다.")
 
-    with st.expander("사용설명서 보기"):
-        st.markdown("""
+    st.markdown("""
         - 지원 형식: XLSX, XLSM  
 
         1. 회계-장부관리-원장 엑셀자료 메뉴 클릭  

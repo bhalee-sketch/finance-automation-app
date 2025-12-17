@@ -213,10 +213,9 @@ def run():
             st.session_state["page"] = "main"
             st.rerun()
 
-    with title_col:
-        st.title("🛠 기타 기능 🛠 - 자금이체 문구 생성")
+    st.title("🛠 기타 기능 🛠 - 자금이체 문구 생성")
 
-    st.write("끝 5자리 숫자를 입력하면 엔터키로 바로 문구가 생성됩니다.")
+    st.write("계좌번호 끝 5자리 숫자를 입력하고 엔터키룰 압력하면 바로 문구가 생성됩니다.")
 
     # 입력 필드
     col1, col2 = st.columns(2)

@@ -233,15 +233,13 @@ def run():
             st.session_state["page"] = "main"
             st.rerun()
 
-    with title_col:
-        st.title("💰 사학진흥재단 차입금 정리")
-        st.caption("VBA `차입금정리` 매크로를 Streamlit으로 옮긴 도구입니다.")
+    st.title("💰 사학진흥재단 차입금 정리")
 
     st.write("여러 차입금 엑셀 파일을 업로드하면 `통합결과` 시트를 만들어서 내려줍니다.")
 
     files = st.file_uploader(
         "차입금 원본 파일 업로드 (여러 개 가능)",
-        type=["xls", "xlsx", "xlsm"],
+        type=["xlsx", "xlsm"],
         accept_multiple_files=True
     )
 

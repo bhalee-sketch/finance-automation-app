@@ -8,6 +8,8 @@ from ledger_app import run as run_ledger
 from xls_convert_app import run as run_xls_convert
 from fundcheck_app import run as run_fund_check
 from donation_main_app import run as run_donation_main
+from expense_account_check_app import run as run_expense_account_check
+from prepaid_cit_app import run as run_prepaid_cit
 
 def go(page: str):
     """페이지 상태 변경 + 즉시 리렌더링"""
@@ -15,6 +17,29 @@ def go(page: str):
     st.rerun()
 
 def render_main_menu():
+
+    # 🔐 숨김 설명서 (서버 관리 / 이용법)
+    with st.expander("🛠 서버 관리 · 이용 방법 (클릭해서 열기)", expanded=False):
+        st.markdown(
+            """
+            ### 📌 기본 안내
+            - 본 시스템은 **재무회계팀 내부 전용** 자동화 도구입니다.
+            - 크롬(Chrome) 브라우저 사용을 권장합니다.
+            - 엑셀 파일 업로드 시 **파일명·시트 구조 변경 금지**.
+
+            ### 🖥 버전 업데이트 방법
+            - https://github.com 접속
+            - Add file → Upload files 클릭 후 코딩한 app.py파일 업로드
+            - 맨 아래 Commit changes 클릭
+
+            ### ⚠ 주의사항
+            - 업로드한 파일은 **서버에 저장되지 않습니다**.
+            - 개인정보 포함 파일은 작업 후 즉시 삭제 권장.
+            - 동시에 여러 기능을 새 탭에서 실행하지 마세요.
+
+            """
+        )
+
     st.title("📊 재무회계팀 자동화 작업 메뉴")
     st.write("원하는 작업을 선택하세요.")
 
@@ -60,8 +85,10 @@ def render_main_menu():
             go("tax")
         if st.button("사학진흥재단 차입금 정리"):
             go("loan")     # loan_app.py를 연결할 key
-        st.button("선급법인세 취합", disabled=True)
-        st.button("재원별 지출계좌 검증", disabled=True)
+        if st.button("선급법인세 취합"):
+            go("prepaid_cit")
+        if st.button("지출계좌 재원 검증"):
+            go("expense_account_check")
         if st.button("임의기금 지출계좌 검증"):
             go("fund_check")
         if st.button("출연받은재산 정리"):
@@ -119,6 +146,12 @@ def main():
 
     elif st.session_state["page"] == "donation_main":
         run_donation_main()
+
+    elif st.session_state["page"] == "expense_account_check":
+        run_expense_account_check()
+        
+    elif st.session_state["page"] == "prepaid_cit":
+        run_prepaid_cit()
 
 if __name__ == "__main__":
     main()

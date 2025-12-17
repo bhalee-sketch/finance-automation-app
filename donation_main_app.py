@@ -14,8 +14,7 @@ def run():
 
     st.title("🎁 출연받은재산 정리")
     st.write("재원을 선택하면 이 페이지에서 바로 작업을 실행합니다.")
-    with st.expander("사용설명서 보기"):
-        st.markdown("""
+    st.markdown("""
         - 지원 형식: XLSX, XLSM  
 
         1. 회계-세무관리-출연받은재산 사용내역 메뉴 클릭  

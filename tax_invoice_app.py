@@ -219,7 +219,6 @@ def import_by_pattern(uploaded_files, pattern, start_row_first):
     df = pd.concat(df_list, ignore_index=True) if df_list else pd.DataFrame()
     return df, f"{pattern} → 처리 {processed}건 / 건너뜀 {skipped}건"
 
-
 # =========================== 매칭 로직 ===========================
 
 def connect_by_id(home_df, haksa_df):
@@ -325,7 +324,6 @@ def connect_by_id(home_df, haksa_df):
         merged = home_body.copy()
 
     return merged
-
 
 # =========================== 엑셀 수식 ===========================
 
@@ -459,6 +457,10 @@ def apply_to_all_sheets(writer, sheet_df_map, tax_sheets):
 def run():
     """메인 앱(app.py)에서 불러오는 세금계산서 대조 페이지"""
     st.title("🧾 학사시스템과 홈택스 세금계산서 대조")
+
+    st.write("사업자등록번호 기준으로 거래처 대조 및 공급가액과 세액의 차이 대조")
+    st.write("**결과값 True는 사업자등록번호 일치**")
+    st.write("**금액이 0원이면 홈택스와 학사의 금액이 일치**")
 
     uploaded_files = st.file_uploader(
         "세금계산서 관련 8개 파일을 업로드하세요. ex)학사매입세금계산서, 홈택스매출계산서",
